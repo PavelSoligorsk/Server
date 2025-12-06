@@ -15,7 +15,6 @@ DB_NAME = "dzengi_api"
 # Подключаемся к MongoDB
 try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    client.admin.command('ping')  # Проверяем подключение
     db = client[DB_NAME]
 
     # РАЗНЫЕ КОЛЛЕКЦИИ
