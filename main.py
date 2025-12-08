@@ -7,6 +7,7 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 import uvicorn
 import requests
+from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 
 # Импортируем функции из нашего проекта
@@ -21,6 +22,8 @@ from server_dzengi.mongo_storage import (
     load_unknown_data
 )
 
+
+
 # Создаем FastAPI приложение
 app = FastAPI(
     title="Official CryptoKobra Api",
@@ -29,6 +32,22 @@ app = FastAPI(
     version="1.0.0"
 )
 
+origins = [
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://localhost:9000",
+]
+
+# ДОБАВЬТЕ ЭТОТ БЛОК ↓
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/", summary="Главная страница")
 async def root():
@@ -69,21 +88,12 @@ async def start(time: int = 5):
                     if desc == 'PROCESSED'
                 ]
 
-            return {
-                "status": "success",
-                "message": "Сбор данных завершен",
-                "unknown_data_processed": True,
-                "symbols_count": len(processed_symbols),
-                "storage": "MongoDB"
-            }
+            return 'success'
 
         except Exception as e:
-            return {
-                "status": "partial_success",
-                "message": f"Данные собраны, но обработка не завершена: {str(e)}"
-            }
+            return 'failed'
 
-    return {"status": "error", "message": "Ошибка при сборе данных"}
+    return 'failed'
 
 
 @app.get("/get/{symbol}", summary="Получить данные токена по символу")
@@ -93,12 +103,8 @@ async def get_token(symbol: str):
         # Преобразуем символ для поиска
         filename = symbol.replace('/', '_')
         data = load_json_data(filename)
-        return {
-            "symbol": symbol,
-            "data": data,
-            # "source": "market_data коллекция",
-            # "storage": "MongoDB"
-        }
+        return data
+
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -120,32 +126,19 @@ async def get_all():
             except:
                 continue
 
-        return {
-            'tokens': result,
-            # 'subscribed_count': len(subscribed_symbols),
-            # 'data_found_count': len(result),
-            # 'source': 'market_data коллекция',
-            # 'storage': 'MongoDB'
-        }
+        return list(result.values())
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/add/{symbol}", summary="Добавить символ в подписки")
+@app.post("/add/{symbol}", summary="Добавить символ в подписки")
 async def add_token(symbol: str, delete: bool = False):
     """Добавляет или удаляет символ из подписок (payload коллекция)"""
     result = write_payload(symbol, delete)
 
     if 200 in result:
-        return {
-            "status": "success",
-            "message": result[200],
-            "symbol": symbol,
-            "action": "removed" if delete else "added",
-            "collection": "payload (подписки)",
-            "storage": "MongoDB"
-        }
+        return 'success'
     else:
         error_code = list(result.keys())[0]
         error_message = result[error_code]
@@ -156,7 +149,7 @@ async def add_token(symbol: str, delete: bool = False):
 async def get_payload():
     try:
         current_payload = read_payload()
-        return current_payload
+        return current_payload.get("symbols")
     except HTTPException as e:
         raise HTTPException(status_code=404, detail=str(e))
     # return {
@@ -171,12 +164,7 @@ async def get_payload():
 async def clear_payload_endpoint():
     """Очищает подписки из payload коллекции"""
     clear_payload()
-    return {
-        "status": "success",
-        # "message": "Подписки очищены",
-        # "collection": "payload",
-        # "storage": "MongoDB"
-    }
+    return "status"
 
 
 @app.get("/search/{name}", summary="Поиск символов по названию")
@@ -202,11 +190,8 @@ async def search_symbols(name: str):
         if not found_symbols:
             raise HTTPException(status_code=404, detail="Символы не найдены")
 
-        return {
-            # "search_query": name,
-            "symbols": found_symbols,
-            # "count": len(found_symbols)
-        }
+        return found_symbols
+
 
     except requests.exceptions.Timeout:
         raise HTTPException(status_code=408, detail="Таймаут при поиске символов")

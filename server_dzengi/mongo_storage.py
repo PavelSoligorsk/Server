@@ -14,7 +14,7 @@ from pymongo.errors import ConnectionFailure
 logger = logging.getLogger(__name__)
 
 # Получаем настройки из переменных окружения
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongodb:27017")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://host.docker.internal:27017")
 DB_NAME = os.getenv("DB_NAME", "dzengi_api")
 
 # Глобальные переменные для ленивой инициализации
